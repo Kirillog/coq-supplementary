@@ -15,8 +15,10 @@ let ocamlPackages = coq.ocamlPackages;
       release."2.1.2".sha256 = "sha256-GloY68fLmIv3oiEGNWwmgKv1CMAReBuXzMTUsKOs328=";
       release."2.1.4".rev = "v2.1.4";
       release."2.1.4".sha256 = "sha256-Vwve1sCg5OsGmhDLlOyGCwP6A8g618IzD79vLPw/JtQ=";
+      release."2.2.1".rev = "v2.2.1";
+      release."2.2.1".sha256 = "sha256-miIVAv/8jlP1pXnoK1MWz4O6nlmb309a8UjcCivbiB4=";
       inherit location; });
-    fetched = fetch (if version != null then version else defaultVersion);
+    fetched = fetch version;
 in
 ocamlPackages.buildDunePackage {
   pname = "vscoq-language-server";
