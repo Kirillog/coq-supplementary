@@ -10,13 +10,14 @@
     flake-utils.lib.eachDefaultSystem ( system:
     let
       pkgs = import nixpkgs { inherit system; };
-      ncoqPackages = pkgs.coqPackages_8_18;
       coq-lsp = pkgs.callPackage ./vscoq-language-server.nix (with pkgs; {
-            adwaita-icon-theme=gnome.adwaita-icon-theme;
-            wrapGAppsHook3=wrapGAppsHook;
-            metaFetch=coqPackages.metaFetch;
-            lib=coqPackages.lib;
-          });
+                  adwaita-icon-theme=gnome.adwaita-icon-theme;
+                  wrapGAppsHook3=wrapGAppsHook;
+                  metaFetch=coqPackages.metaFetch;
+                  lib=coqPackages.lib;
+                  version="2.2.1";
+                });
+      ncoqPackages = pkgs.coqPackages_8_18;
       coq-hahn = ncoqPackages.callPackage (
         { coq, stdenv, fetchFromGitHub }:
         stdenv.mkDerivation {
@@ -40,8 +41,8 @@
         name = "coq";
 
         buildInputs = with pkgs; [
+          coq
           coq-hahn
-
           coq-lsp
         ];
       };
