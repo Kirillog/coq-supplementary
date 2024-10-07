@@ -86,7 +86,7 @@ Proof. intros T x y p q H.
 
 Lemma lt_gt_id_false : forall id1 id2 : id,
     id1 i> id2 -> id2 i> id1 -> False.
-Proof. intros id1 id2 H F. destruct id1, id2.
+Proof. intros id1 id2 H F. destruct id1, id2. 
   destruct (gt_dec n n0).
   + destruct (Nat.lt_asymm n0 n). assumption. inversion F. assumption.
   + apply n1. inversion H. assumption.
@@ -117,7 +117,17 @@ Proof.
     - right. apply (gt_conv n0 n) in g. assumption.
     - exfalso. apply H. rewrite e. reflexivity.
   + apply (gt_conv n n0) in g. left. assumption. Qed.
-    
+
+Lemma neq_id_sym : forall id1 id2 : id,
+    id1 <> id2 -> id2 <> id1.
+Proof.
+  destruct id1, id2.
+  intros H.
+  destruct (id_eq_dec (Id n0) (Id n)).
+  + rewrite e in H. contradiction.
+  + assumption.
+Qed. 
+
 Lemma eq_gt_id_false : forall id1 id2 : id,
     id1 = id2 -> id1 i> id2 -> False.
 Proof. destruct id1, id2. intros H F. 
