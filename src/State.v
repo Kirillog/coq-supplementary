@@ -132,6 +132,6 @@ Section S.
   Qed. 
 
   Lemma equal_states_equive (st st' : state) (HE: st = st') : st ~~ st'.
-  Proof. admit. Admitted.
+  Proof. rewrite HE. apply st_equiv_refl. Qed.
 
 End S.
