@@ -153,7 +153,9 @@ Module SmokeTest.
     + dependent destruction H. dependent destruction H0.
     econstructor. econstructor; eassumption. eassumption.
   Qed. 
-  
+
+  #[export] Hint Resolve SmokeTest.seq_assoc : core.
+
   (* One-step unfolding *)
   Lemma while_unfolds (e : expr) (s : stmt) :
     (WHILE e DO s END) ~~~ (COND e THEN s ;; WHILE e DO s END ELSE SKIP END).
@@ -283,6 +285,9 @@ Ltac eval_zero_not_one :=
 Ltac crush :=
   subst;
   try auto.
+
+Ltac ecrush :=
+  eauto.
 
 Lemma bs_int_deterministic (c c1 c2 : conf) (s : stmt)
       (EXEC1 : c == s ==> c1) (EXEC2 : c == s ==> c2) :
@@ -602,35 +607,81 @@ Ltac cps_bs_gen_helper k H HH :=
   destruct k eqn:K; subst; inversion H; subst;
   [inversion EXEC; subst | eapply bs_Seq; eauto];
   apply HH; auto.
-    
+
 Lemma cps_bs_gen (S : stmt) (c c' : conf) (S1 k : cont)
       (EXEC : k |- c -- S1 --> c') (DEF : !S = S1 @ k):
   c == S ==> c'.
-Proof. admit. Admitted.
+Proof. generalize dependent S. induction EXEC; intros.
+  + dependent destruction DEF.
+  + dependent destruction k; dependent destruction DEF. 
+    - dependent destruction EXEC. ecrush.
+    - eauto.
+  + dependent destruction k; dependent destruction DEF. 
+    - dependent destruction EXEC. ecrush.
+    - econstructor. econstructor. ecrush. ecrush.
+  + dependent destruction k; dependent destruction DEF.
+    - dependent destruction EXEC. ecrush.
+    - econstructor. econstructor. ecrush.
+  + dependent destruction k; dependent destruction DEF.
+    - dependent destruction EXEC. ecrush.
+    - econstructor. econstructor. ecrush. ecrush.
+  + dependent destruction k; dependent destruction DEF.
+    - auto.
+    - apply SmokeTest.seq_assoc. auto.
+  + dependent destruction k; dependent destruction DEF.
+    - auto.
+    - assert (H : (COND e THEN s1 ELSE s2 END ;; s0) ~~~ (COND e THEN s1;; s0 ELSE s2;; s0 END)).
+      { split; intros; dependent destruction H; dependent destruction H; eauto. }
+      apply H. auto.
+  + dependent destruction k; dependent destruction DEF.
+    - auto.
+    - assert (H : (COND e THEN s1 ELSE s2 END ;; s0) ~~~ (COND e THEN s1;; s0 ELSE s2;; s0 END)).
+      { split; intros; dependent destruction H; dependent destruction H; eauto. }
+      apply H. auto.
+  + dependent destruction k; dependent destruction DEF.
+    - apply SmokeTest.while_unfolds. auto.
+    - assert (H : ((st, i, o) == s0 ;; WHILE e DO s0 END ;; s ==> c') -> ((st, i, o) == WHILE e DO s0 END ;; s ==> c')).
+      { intros. dependent destruction H. dependent destruction H0. eauto. }
+      apply H. auto.
+  + dependent destruction k; dependent destruction DEF.
+    - dependent destruction EXEC. ecrush.
+    - econstructor. eapply bs_While_False. auto. auto.
+  Qed.
+  
 
 Lemma cps_bs (s1 s2 : stmt) (c c' : conf) (STEP : !s2 |- c -- !s1 --> c'):
    c == s1 ;; s2 ==> c'.
-Proof. admit. Admitted.
+Proof. eapply cps_bs_gen; eauto. Qed.
 
 Lemma cps_int_to_bs_int (c c' : conf) (s : stmt)
       (STEP : KEmpty |- c -- !(s) --> c') : 
   c == s ==> c'.
-Proof. admit. Admitted.
+Proof. eapply cps_bs_gen; eauto. Qed.
 
 Lemma cps_cont_to_seq c1 c2 k1 k2 k3
       (STEP : (k2 @ k3 |- c1 -- k1 --> c2)) :
   (k3 |- c1 -- k1 @ k2 --> c2).
-Proof. admit. Admitted.
+Proof. dependent destruction k1; dependent destruction k2; auto.
+  dependent destruction k3; inversion STEP.
+  dependent destruction k3; apply cps_Seq; auto. Qed.
 
 Lemma bs_int_to_cps_int_cont c1 c2 c3 s k
       (EXEC : c1 == s ==> c2)
       (STEP : k |- c2 -- !(SKIP) --> c3) :
   k |- c1 -- !(s) --> c3.
-Proof. admit. Admitted.
+Proof. dependent destruction STEP. generalize dependent k.
+  dependent induction EXEC; intros; try by econstructor; eauto.
+    + constructor. apply IHEXEC1. 
+    dependent destruction k; eauto.
+    constructor. auto.
+    + econstructor; eauto. apply IHEXEC1.
+    dependent destruction k; eauto.
+    constructor. auto.
+  Qed.
 
 Lemma bs_int_to_cps_int st i o c' s (EXEC : (st, i, o) == s ==> c') :
   KEmpty |- (st, i, o) -- !s --> c'.
-Proof. admit. Admitted.
+Proof. eapply bs_int_to_cps_int_cont; eauto. constructor. constructor. Qed.
 
 (* Lemma cps_stmt_assoc s1 s2 s3 s (c c' : conf) : *)
 (*   (! (s1 ;; s2 ;; s3)) |- c -- ! (s) --> (c') <-> *)
