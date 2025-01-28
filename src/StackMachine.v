@@ -2,6 +2,7 @@ Require Import BinInt ZArith_dec.
 Require Import List.
 Import ListNotations.
 Require Import Lia.
+Require Import Coq.Program.Equality.
 
 Require Export Id.
 Require Export State.
@@ -198,33 +199,54 @@ Module StraightLine.
         (VAL : [| e |] st => n)
         (EXEC: (n::s, st, i, o) -- p --> c) :        
     (s, st, i, o) -- (compile_expr e) ++ p --> c.
-  Proof. admit. Admitted.
+  Proof. dependent induction e; dependent destruction VAL.
+  1-3: simpl; try econstructor; eauto.
+  all: simpl; rewrite <- app_assoc; rewrite <- app_assoc; 
+    eapply IHe1; eauto; 
+    eapply IHe2; eauto; simpl;
+    constructor; assumption; assumption. Qed.
 
-  #[export] Hint Resolve compiled_expr_correct_cont.
+  #[export] Hint Resolve compiled_expr_correct_cont : core.
   
   Lemma compiled_expr_correct
         (e : expr) (st : state Z) (s i o : list Z) (n : Z)
         (VAL : [| e |] st => n) :
     (s, st, i, o) -- (compile_expr e) --> (n::s, st, i, o).
-  Proof. admit. Admitted.
+  Proof. rewrite <- (app_nil_r (compile_expr e)).
+    eapply compiled_expr_correct_cont; eauto.
+     constructor. constructor.
+  Qed.
   
   Lemma compiled_expr_not_incorrect_cont
         (e : expr) (st : state Z) (s i o : list Z) (p : prog) (c : conf)
         (EXEC : (s, st, i, o) -- compile_expr e ++ p --> c) :
     exists (n : Z), [| e |] st => n /\ (n :: s, st, i, o) -- p --> c.
-  Proof. admit. Admitted.
+  Proof. dependent induction e; simpl in EXEC.
+    1-2: inversion EXEC; subst; exists z; split; auto.
+      rewrite <- app_assoc in EXEC. rewrite <- app_assoc in EXEC.
+      apply IHe1 in EXEC.
+      destruct EXEC as [n [VAL EXEC]].
+      apply IHe2 in EXEC.
+      destruct EXEC as [n1 [VAL1 EXEC1]]. simpl in EXEC1.
+      dependent destruction EXEC1; eauto.
+  Qed.
   
   Lemma compiled_expr_not_incorrect
         (e : expr) (st : state Z)
         (s i o : list Z) (n : Z)
         (EXEC : (s, st, i, o) -- (compile_expr e) --> (n::s, st, i, o)) :
     [| e |] st => n.
-  Proof. admit. Admitted.
+  Proof. 
+    rewrite <- (app_nil_r (compile_expr e)) in EXEC.
+    apply compiled_expr_not_incorrect_cont in EXEC. destruct EXEC as [x [VAL EXEC]].
+    dependent destruction EXEC. auto. Qed.
   
   Lemma expr_compiler_correct
         (e : expr) (st : state Z) (s i o : list Z) (n : Z) :
     (s, st, i, o) -- (compile_expr e) --> (n::s, st, i, o) <-> [| e |] st => n.
-  Proof. admit. Admitted.
+  Proof. split; intros.
+    + eapply compiled_expr_not_incorrect; eauto.
+    + eapply compiled_expr_correct. auto. Qed.
       
   Fixpoint compile (s : stmt) (H : StraightLine s) : prog :=
     match H with
@@ -241,30 +263,54 @@ Module StraightLine.
         (H : (st, i, o) == p ==> (st', i', o')) (q : prog) (c : conf)
         (EXEC : ([], st', i', o') -- q --> c) :
     ([], st, i, o) -- (compile p Sp) ++ q --> c.
-  Proof. admit. Admitted.
+  Proof. 
+    dependent induction Sp; dependent destruction H; simpl.
+    1, 3: rewrite <- app_assoc; eapply compiled_expr_correct_cont; eauto; constructor; auto.
+    1-2: repeat constructor; auto.
+    + rewrite <- app_assoc. destruct c', p. eapply IHSp1; eauto. Qed.
   
   Lemma compiled_straightline_correct
         (p : stmt) (Sp : StraightLine p) (st st' : state Z) (i o i' o' : list Z)
         (EXEC : (st, i, o) == p ==> (st', i', o')) :
     ([], st, i, o) -- compile p Sp --> ([], st', i', o').
-  Proof. admit. Admitted.
+  Proof. rewrite <- (app_nil_r (compile p Sp)).
+    eapply compiled_straightline_correct_cont; eauto. repeat constructor. Qed.
   
   Lemma compiled_straightline_not_incorrect_cont
         (p : stmt) (Sp : StraightLine p) (st : state Z) (i o : list Z) (q : prog) (c : conf)
         (EXEC: ([], st, i, o) -- (compile p Sp) ++ q --> c) :
     exists (st' : state Z) (i' o' : list Z), (st, i, o) == p ==> (st', i', o') /\ ([], st', i', o') -- q --> c.
-  Proof. admit. Admitted.
-  
+  Proof. 
+    dependent induction Sp; simpl in EXEC.
+    + rewrite <- app_assoc in EXEC.
+      apply compiled_expr_not_incorrect_cont in EXEC.
+      destruct EXEC as [n [VAL EXEC]]. dependent destruction EXEC. 
+      exists (st [x <- n]), i, o. auto.
+    + dependent destruction EXEC. dependent destruction EXEC.
+      exists (st [x <- z]), i0, o. auto.
+    + rewrite <- app_assoc in EXEC. apply compiled_expr_not_incorrect_cont in EXEC.
+      destruct EXEC as [n [VAL EXEC]]. dependent destruction EXEC.
+      exists st, i, (n :: o). auto.
+    + eauto.
+    + rewrite <- app_assoc in EXEC. 
+      apply IHSp1 in EXEC. destruct EXEC as [st' [i' [o' [VAL' EXEC']]]].
+      apply IHSp2 in EXEC'. destruct EXEC' as [st'' [i'' [o'' [VAL'' EXEC'']]]].
+      exists st'', i'', o''. eauto. Qed.
+
   Lemma compiled_straightline_not_incorrect
         (p : stmt) (Sp : StraightLine p) (st st' : state Z) (i o i' o' : list Z)
         (EXEC : ([], st, i, o) -- compile p Sp --> ([], st', i', o')) :
     (st, i, o) == p ==> (st', i', o').
-  Proof. admit. Admitted.
+  Proof. rewrite <- (app_nil_r (compile p Sp)) in EXEC.
+    apply compiled_straightline_not_incorrect_cont in EXEC.
+    destruct EXEC as [st'' [i'' [o'' [VAL'' EXEC'']]]]. dependent destruction EXEC''. eauto. Qed.
   
   Theorem straightline_compiler_correct
           (p : stmt) (Sp : StraightLine p) (st st' : state Z) (i o i' o' : list Z) :
     (st, i, o) == p ==> (st', i', o') <-> ([], st, i, o) -- compile p Sp --> ([], st', i', o').
-  Proof. admit. Admitted.
+  Proof. split; intros.
+    + eapply compiled_straightline_correct. auto.
+    + eapply compiled_straightline_not_incorrect. eauto. Qed. 
   
 End StraightLine.
   
