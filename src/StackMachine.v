@@ -410,23 +410,41 @@ Fixpoint prog_wf_rec (prog p : prog) : bool :=
    
 Definition prog_wf (p : prog) : bool := prog_wf_rec p p.
 
+Lemma wf_app_lem (p q r : prog) : prog_wf_rec q (p ++ r) = true <-> prog_wf_rec q p = true /\ prog_wf_rec q r = true.
+Proof.
+  split; intros.
+  2: destruct H.
+  all: dependent induction p.
+  1, 3: simpl; simpl in H; auto.
+  all: simpl; dependent destruction a.
+    1-3, 6-8: simpl in H; rewrite Bool.andb_true_iff in H;
+      dependent destruction H; rewrite H; simpl; auto.
+    all: simpl in H; simpl; auto. Qed.
+
 Lemma wf_app (p q  : prog)
              (l    : nat)
              (Hwf  : prog_wf_rec q p = true)
              (Hocc : label_occurs_once l q = true) : prog_wf_rec q (p ++ [JMP l]) = true.
-Proof. admit. Admitted.
+Proof. apply wf_app_lem. simpl. rewrite Hocc. auto. Qed.
+
+Lemma cons_comm_app (A : Type) (a : A) (l1 l2 : list A) : l1 ++ a :: l2 = (l1 ++ [a]) ++ l2.
+Proof. 
+  dependent induction l1; auto.
+  simpl.
+  rewrite <- IHl1. auto. Qed.
 
 Lemma wf_rev (p q : prog) (Hwf : prog_wf_rec q p = true) : prog_wf_rec q (rev p) = true.
-Proof. admit. Admitted.
+Proof.
+  dependent induction p.
+    + simpl. reflexivity.
+    + simpl. rewrite <- (app_nil_l (a :: p)) in Hwf. rewrite cons_comm_app with (l1 := nil) in Hwf. apply wf_app_lem in Hwf.
+    destruct Hwf. apply IHp in H0. apply wf_app_lem. auto. Qed.   
 
 Fixpoint convert_straightline (p : StraightLine.prog) : prog :=
   match p with
     []      => []
   | i :: p' => B i :: convert_straightline p'
   end.
-
-Lemma cons_comm_app (A : Type) (a : A) (l1 l2 : list A) : l1 ++ a :: l2 = (l1 ++ [a]) ++ l2.
-Proof. admit. Admitted.
 
 Definition compile_expr (e : expr) : prog :=
   convert_straightline (StraightLine.compile_expr e).
