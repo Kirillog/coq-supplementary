@@ -280,10 +280,21 @@ Ltac eval_zero_not_one :=
     eapply eval_deterministic; eauto
   end.
 
+Ltac crush :=
+  subst;
+  try auto.
+
 Lemma bs_int_deterministic (c c1 c2 : conf) (s : stmt)
       (EXEC1 : c == s ==> c1) (EXEC2 : c == s ==> c2) :
   c1 = c2.
-Proof. admit. Admitted.
+Proof.
+  generalize dependent c2. induction EXEC1; intros.
+  all: try dependent destruction EXEC2; auto.
+  all: try by_eval_deterministic.
+  all: try eval_zero_not_one.
+    + apply (IHEXEC1_2 c''0). specialize (IHEXEC1_1 c'0). apply IHEXEC1_1 in EXEC2_1. crush. 
+    + apply (IHEXEC1_2 c''0). specialize (IHEXEC1_1 c'0). apply IHEXEC1_1 in EXEC2_1. crush.
+Qed.
 
 Definition equivalent_states (s1 s2 : state Z) :=
   forall id, Expr.equivalent_states s1 s2 id.
@@ -295,7 +306,27 @@ Lemma bs_equiv_states
   (HE1          : equivalent_states st1 st1')  
   (H            : (st1, i, o) == s ==> (st2, i', o')) :
   exists st2',  equivalent_states st2 st2' /\ (st1', i, o) == s ==> (st2', i', o').
-Proof. admit. Admitted.
+Proof. dependent induction H.
+  + econstructor. split; eauto.
+  + econstructor. split.
+   2: econstructor; eapply variable_relevance; eauto.
+    split; intros; dependent destruction H; constructor; auto;
+      apply HE1; auto.
+  + econstructor. split. 
+   2: econstructor; eapply variable_relevance; eauto.
+    split; intros; dependent destruction H; constructor; auto;
+      apply HE1; auto.
+  + econstructor. split.
+    - eauto.
+    - econstructor; eapply variable_relevance; eauto.
+  + admit.
+  + admit.
+  + admit.
+  + admit.
+  + econstructor; split.
+    - eauto.
+    - eapply bs_While_False. eapply variable_relevance; eauto.
+  Admitted.
   
 (* Contextual equivalence is equivalent to the semantic one *)
 (* TODO: no longer needed *)
@@ -349,31 +380,73 @@ Module SmallStep.
         (EXEC1 : c -- s --> c')
         (EXEC2 : c -- s --> c'') :
     c' = c''.
-  Proof. admit. Admitted.
+  Proof. dependent induction s; dependent destruction EXEC1; dependent destruction EXEC2; try auto.
+    all: try by_eval_deterministic.
+    all: try specialize (IHs1 _ _ _ EXEC1 EXEC2); try inversion IHs1; crush.
+    all: try eval_zero_not_one.
+  Qed.
   
   Lemma ss_int_deterministic (c c' c'' : conf) (s : stmt)
         (STEP1 : c -- s -->> c') (STEP2 : c -- s -->> c'') :
     c' = c''.
-  Proof. admit. Admitted.
-  
+  Proof. dependent induction STEP1;
+    dependent destruction STEP2; specialize (ss_int_step_deterministic _ _ _ _ H H0); intros; inversion H1.
+    reflexivity. crush.
+  Qed.
+
   Lemma ss_bs_base (s : stmt) (c c' : conf) (STEP : c -- s --> (None, c')) :
     c == s ==> c'.
-  Proof. admit. Admitted.
+  Proof.
+    inversion STEP; crush. 
+  Qed. 
 
   Lemma ss_ss_composition (c c' c'' : conf) (s1 s2 : stmt)
         (STEP1 : c -- s1 -->> c'') (STEP2 : c'' -- s2 -->> c') :
     c -- s1 ;; s2 -->> c'. 
-  Proof. admit. Admitted.
+  Proof. 
+    dependent induction STEP1.
+      + apply (ss_int_Step _ s2 _ c'0); crush. constructor. crush.
+      + apply (ss_int_Step _ (s' ;; s2) _ c'0). constructor. crush.
+        apply IHSTEP1. crush.
+  Qed.
   
   Lemma ss_bs_step (c c' c'' : conf) (s s' : stmt)
         (STEP : c -- s --> (Some s', c'))
         (EXEC : c' == s' ==> c'') :
     c == s ==> c''.
-  Proof. admit. Admitted.
-  
+  Proof. 
+    generalize dependent c''. generalize dependent c'. generalize dependent c. 
+    dependent induction s; intros; dependent destruction STEP.
+      + econstructor. apply ss_bs_base. eauto. eauto.
+      + dependent destruction EXEC. econstructor. apply (IHs1 _ _ _ STEP _). eauto. eauto.
+      + eauto.
+      + eauto.
+      + apply SmokeTest.while_unfolds. eauto.
+  Qed.
+
   Theorem bs_ss_eq (s : stmt) (c c' : conf) :
     c == s ==> c' <-> c -- s -->> c'.
-  Proof. admit. Admitted.
+  Proof. 
+    split; intros.
+    + dependent induction s.
+      1-4: constructor; dependent destruction H; econstructor; eauto.
+      - dependent destruction H. 
+      eapply ss_ss_composition. 
+      apply IHs1. eauto. apply IHs2. eauto.
+      - dependent destruction H.
+        * eapply ss_int_Step. eapply ss_If_True. eauto. eauto.
+        * eapply ss_int_Step. eapply ss_If_False. eauto. eauto.
+      - dependent induction H; 
+        eapply ss_int_Step; try eapply ss_While.
+        * eapply ss_int_Step. eapply ss_If_True. auto.
+        eapply ss_ss_composition. eapply IHs. eauto.
+        eapply IHbs_int2. auto. auto.
+        * eapply ss_int_Step. eapply ss_If_False. auto.
+        constructor. constructor.
+    + dependent induction H.
+      - eapply ss_bs_base. auto.
+      - eapply ss_bs_step; eauto.
+  Qed.
   
 End SmallStep.
 
