@@ -672,14 +672,9 @@ Module Renaming.
     + simpl. destruct r', a, r. simpl. rewrite IHst. rewrite Hinv. reflexivity.
   Qed.
 
-  Lemma func_eq {A B}
-    (a1 a2 : A) (F : A -> B) (H: a1 = a2) : (F a1 = F a2).
-  Proof.
-    rewrite H. reflexivity. Qed.
-
   Lemma bijective_injective (f : id -> id) (BH : Bijective f) : Injective f.
   Proof. destruct BH, H. unfold Injective. intros x0. intros x1. intros H1.
-   apply (func_eq _ _ x) in H1. rewrite (H x0) in H1. rewrite (H x1) in H1. assumption. Qed.
+   apply f_equal with (f := x) in H1. rewrite (H x0) in H1. rewrite (H x1) in H1. assumption. Qed.
   
   Lemma state_renaming_invariance (i : id) (s : state Z) (z : Z) (r : renaming)
     : s / i => z <-> (rename_state r s) / rename_id r i => z.
